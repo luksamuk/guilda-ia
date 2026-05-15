@@ -13,6 +13,8 @@ Clique no badge "Open in Colab" no notebook ou na página da guilda para abrir u
 | `aula03_python_minimo.ipynb` | Semana 03 | Python mínimo: tipos, listas, dicionários, funções com estado, strings, JSON, loops/condicionais |
 | `poc_llm_local_colab.ipynb` | Experimental (legado) | POC: inferência local de Qwen3-4B via llama-cpp-python |
 | `poc_ollama_qwen35_colab.ipynb` | Experimental | POC: inferência local de Qwen3.5-4B via Ollama (API REST HTTP) |
+| `poc_ollama_gemma4_colab.ipynb` | Experimental | POC: inferência local de Gemma 4 E2B via Ollama (API REST HTTP) |
+| `poc_ollama_qwen35_4b_colab.ipynb` | Experimental | POC: Qwen 3.5 4B via Ollama no Colab (minimalista) |
 
 ## Estrutura dos notebooks
 
