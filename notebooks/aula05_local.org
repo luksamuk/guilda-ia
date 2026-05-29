@@ -1,7 +1,7 @@
 #+TITLE: Aula 05 — Estrutura de um Agente (Local)
 #+AUTHOR: Guilda de IA — UFVJM 2026.1
 #+LANGUAGE: pt-BR
-#+PROPERTY: header-args:python :session aula05 :results output :async yes
+#+PROPERTY: header-args:python :python /home/alchemist/git/guilda-ia/notebooks/.venv/bin/python :session aula05 :results output :async yes
 
 * Sobre este notebook
 
@@ -63,6 +63,9 @@ def conversar(agente, mensagem):
 print("✅ Agente manual com requests pronto!")
 #+END_SRC
 
+#+RESULTS:
+: ✅ Agente manual com requests pronto!
+
 #+BEGIN_SRC python
 agente = criar_agente("Você é um assistente amigável que responde em português.")
 
@@ -70,6 +73,12 @@ print(conversar(agente, "Oi! Meu nome é Ana."))
 print()
 print(conversar(agente, "Qual é o meu nome?"))
 #+END_SRC
+
+#+RESULTS:
+: Olá, Ana! Como posso ajudar você hoje?
+: 
+: 
+: Olá, Ana! Eu sou um assistente amigável e aqui para ajudar você com qualquer dúvida ou tarefa que precisar. Como posso ajudar?
 
 * 1. LangChain + OpenAI-compatible
 
