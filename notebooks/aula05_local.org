@@ -55,7 +55,7 @@ def conversar(agente, mensagem):
     response = requests.post(
         LLM_URL,
         json={
-            "model": "gemma4:31b-cloud",
+            "model": "qwen3.5-4b",
             "messages": messages,
             "stream": False
         }
@@ -95,7 +95,7 @@ nuvem.
 from langchain_openai import ChatOpenAI
 
 llm = ChatOpenAI(
-    model="gemma4:31b-cloud",
+    model="qwen3.5-4b",
     base_url="http://localhost:11434/v1",
     api_key="nao_precisa",  # Ollama local não usa chave
     temperature=0.7
@@ -104,6 +104,9 @@ llm = ChatOpenAI(
 resposta = llm.invoke("O que é LangChain em uma frase?")
 print(f"🤖 {resposta.content}")
 #+END_SRC
+
+#+RESULTS:
+: 🤖 LangChain é um framework projetado para facilitar a criação de aplicações que utilizam Modelos de Linguagem (LLMs), permitindo "encadear" diferentes componentes para criar fluxos de trabalho complexos e conectá-los a dados externos.
 
 * 2. Cadeia com ChatPromptTemplate
 
