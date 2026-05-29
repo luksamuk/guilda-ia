@@ -34,7 +34,7 @@ Assim fica claro o que o LangChain abstrai.
 #+BEGIN_SRC python
 import requests
 
-LLM_URL = "http://localhost:11434/v1/chat/completions"
+LLM_URL = "http://localhost:12434/v1/chat/completions"
 
 def criar_agente(instrucoes, max_historico=20):
     return {
@@ -81,6 +81,9 @@ print(conversar(agente, "Oi! Meu nome é Ana."))
 print()
 print(conversar(agente, "Qual é o meu nome?"))
 #+END_SRC
+
+#+RESULTS:
+: fb953093-c22c-4254-af1b-b9b80054ac98
 
 * 1. LangChain + OpenAI-compatible
 
@@ -145,68 +148,63 @@ print(f"🤖 {resposta.content}")
 
 * 3. Chat com memória
 
-=RunnableWithMessageHistory= mantém o histórico da conversa automaticamente.
-O modelo "lembra" das mensagens anteriores dentro da mesma sessão.
+O LLM não lembra de nada sozinho — cada chamada é independente.
+Para ter memória, guardamos o histórico de mensagens e enviamos junto a cada chamada.
+
+A LangChain oferece =RunnableWithMessageHistory=, mas ela foi *deprecated* (vai sumir no LangChain 2.0). A alternativa oficial é LangGraph, que é complexa demais pra noís agora.
+
+A abordagem mais simples e didática? Gerenciar o histórico na mão — igual já fazemos com =requests=, mas usando o LangChain.
 
 #+BEGIN_SRC python
-from langchain_core.runnables.history import RunnableWithMessageHistory
-from langchain_core.chat_history import InMemoryChatMessageHistory
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
+# Histórico por sessão — um dicionário simples
 sessoes = {}
 
-def get_history(session_id):
-    """Retorna (ou cria) o histórico de uma sessão."""
-    if session_id not in sessoes:
-        sessoes[session_id] = InMemoryChatMessageHistory()
-    return sessoes[session_id]
+def chat_com_memoria(sessao_id, pergunta):
+    # Pega (ou cria) o histórico da sessão
+    if sessao_id not in sessoes:
+        sessoes[sessao_id] = []
 
-prompt_mem = ChatPromptTemplate.from_messages([
-    ("system", "Você é um assistente amigável que responde em português."),
-    ("placeholder", "{history}"),
-    ("human", "{pergunta}")
-])
+    historico = sessoes[sessao_id]
 
-cadeia_mem = RunnableWithMessageHistory(
-    prompt_mem | llm,
-    get_session_history=get_history,
-    input_messages_key="pergunta",
-    history_messages_key="history"
-)
+    # Monta as mensagens: system prompt + histórico + pergunta nova
+    mensagens = [SystemMessage(content="Você é um assistente amigável que responde em português.")]
+    mensagens.extend(historico)
+    mensagens.append(HumanMessage(content=pergunta))
 
-print("✅ Cadeia com memória pronta!")
+    # Chama o LLM
+    resposta = llm.invoke(mensagens)
+
+    # Guarda a troca no histórico
+    historico.append(HumanMessage(content=pergunta))
+    historico.append(AIMessage(content=resposta.content))
+
+    return resposta.content
+
+print("✅ Chat com memória pronto!")
 #+END_SRC
 
 #+BEGIN_SRC python
-r1 = cadeia_mem.invoke(
-    {"pergunta": "Meu nome é Ana e eu estudo engenharia."},
-    config={"configurable": {"session_id": "aula05"}}
-)
-print(f"🤖 {r1.content}")
+print(chat_com_memoria("aula05", "Meu nome é Ana e eu estudo engenharia."))
 #+END_SRC
 
 #+BEGIN_SRC python
-r2 = cadeia_mem.invoke(
-    {"pergunta": "Qual é o meu nome e o que eu estudo?"},
-    config={"configurable": {"session_id": "aula05"}}
-)
-print(f"🤖 {r2.content}")
+print(chat_com_memoria("aula05", "Qual é o meu nome e o que eu estudo?"))
 #+END_SRC
 
 #+BEGIN_SRC python
-r3 = cadeia_mem.invoke(
-    {"pergunta": "Qual é o meu nome?"},
-    config={"configurable": {"session_id": "nova_sessao"}}
-)
-print(f"🤖 {r3.content}")
+# Sessão diferente = memória zerada
+print(chat_com_memoria("nova_sessao", "Qual é o meu nome?"))
 print("👉 Na sessão 'nova_sessao' o modelo não sabe nosso nome!")
 #+END_SRC
 
 * Resumo
 
 - *requests puro* → agente com dict + funções (sem abstração)
-- *ChatOpenAI* → conecta LangChain ao Ollama via endpoint OpenAI-compatible
+- *ChatOpenAI* → conecta LangChain ao LLM via endpoint OpenAI-compatible
 - *ChatPromptTemplate* → prompts reutilizáveis com variáveis
-- *RunnableWithMessageHistory* → memória automática
+- *mensagens manuais* → memória = guardar histórico e enviar junto
 - O padrão =prompt | llm= é a base de tudo no LangChain
 
 Na S06 vamos adicionar *ferramentas* (calculadora, busca) ao agente!
