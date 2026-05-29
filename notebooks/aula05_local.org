@@ -1,0 +1,197 @@
+#+TITLE: Aula 05 — Estrutura de um Agente (Local)
+#+AUTHOR: Guilda de IA — UFVJM 2026.1
+#+LANGUAGE: pt-BR
+
+* Sobre este notebook
+
+Este é o *notebook local* para acompanhar a aula 05 sem depender do Colab.
+O modelo roda no llama-swap da máquina local (porta 12434).
+
+Usamos o endpoint *OpenAI-compatible* do Ollama (=/v1/chat/completions=) com
+=ChatOpenAI= do =langchain-openai=. Isso funciona com *qualquer* servidor que
+fale a API da OpenAI — Ollama, vLLM, TGI, Gemini, OpenAI — bastando trocar
+=base_url= e =api_key=.
+
+O =ChatOllama= existe, mas o endpoint OpenAI-compatible é o padrão da
+indústria. Aprender assim te prepara pra trocar de provedor mudando uma linha.
+
+* 0. Agente na Mão — =requests= puro
+
+Antes de usar LangChain, vamos construir um agente *do zero* com o que já
+sabemos: =requests.post= + dicionários Python.
+
+Assim fica claro o que o LangChain abstrai.
+
+#+BEGIN_SRC python :results output
+import requests
+
+LLM_URL = "http://localhost:12434/v1/chat/completions"
+
+def criar_agente(instrucoes, max_historico=20):
+    return {
+        "instrucoes": instrucoes,
+        "historico": [],
+        "max_historico": max_historico
+    }
+
+def conversar(agente, mensagem):
+    messages = [{"role": "system", "content": agente["instrucoes"]}]
+
+    limite = agente["max_historico"]
+    for msg in agente["historico"][-limite:]:
+        messages.append(msg)
+
+    messages.append({"role": "user", "content": mensagem})
+
+    response = requests.post(
+        LLM_URL,
+        json={
+            "model": "qwen3.5-4b:think",
+            "messages": messages,
+            "stream": False
+        }
+    )
+
+    resposta = response.json()["choices"][0]["message"]["content"]
+
+    agente["historico"].append({"role": "user", "content": mensagem})
+    agente["historico"].append({"role": "assistant", "content": resposta})
+
+    return resposta
+
+print("✅ Agente manual com requests pronto!")
+#+END_SRC
+
+#+BEGIN_SRC python :results output
+agente = criar_agente("Você é um assistente amigável que responde em português.")
+
+print(conversar(agente, "Oi! Meu nome é Ana."))
+print()
+print(conversar(agente, "Qual é o meu nome?"))
+#+END_SRC
+
+* 1. LangChain + OpenAI-compatible
+
+Montar mensagens na mão funciona, mas é repetitivo. *LangChain* abstrai
+esse trabalho.
+
+O endpoint OpenAI-compatible do Ollama (=/v1/chat/completions=) funciona com
+=ChatOpenAI= do =langchain-openai=: mesmo modelo local, sem enviar nada pra
+nuvem.
+
+#+BEGIN_SRC python :results output
+from langchain_openai import ChatOpenAI
+
+llm = ChatOpenAI(
+    model="qwen3.5-4b:think",
+    base_url="http://localhost:12434/v1",
+    api_key="nao_precisa",  # Ollama local não usa chave
+    temperature=0.7
+)
+
+resposta = llm.invoke("O que é LangChain em uma frase?")
+print(f"🤖 {resposta.content}")
+#+END_SRC
+
+* 2. Cadeia com ChatPromptTemplate
+
+Um *prompt template* organiza a instrução do sistema + a pergunta do
+usuário em um formato reutilizável. Encadeamos o template ao LLM com o
+operador =|=.
+
+#+BEGIN_SRC python :results output
+from langchain_core.prompts import ChatPromptTemplate
+
+prompt = ChatPromptTemplate.from_messages([
+    ("system", "Você é um professor de IA que responde em português de forma didática e concisa."),
+    ("human", "{pergunta}")
+])
+
+cadeia = prompt | llm
+
+resposta = cadeia.invoke({"pergunta": "O que é um LLM?"})
+print(f"🤖 {resposta.content}")
+#+END_SRC
+
+#+BEGIN_SRC python :results output
+prompt_trad = ChatPromptTemplate.from_messages([
+    ("system", "Traduza o texto para {idioma}. Responda apenas com a tradução."),
+    ("human", "{texto}")
+])
+
+cadeia_trad = prompt_trad | llm
+
+resposta = cadeia_trad.invoke({
+    "idioma": "inglês",
+    "texto": "A inteligência artificial está transformando a educação."
+})
+print(f"🤖 {resposta.content}")
+#+END_SRC
+
+* 3. Chat com memória
+
+=RunnableWithMessageHistory= mantém o histórico da conversa automaticamente.
+O modelo "lembra" das mensagens anteriores dentro da mesma sessão.
+
+#+BEGIN_SRC python :results output
+from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_core.chat_history import InMemoryChatMessageHistory
+
+sessoes = {}
+
+def get_history(session_id):
+    """Retorna (ou cria) o histórico de uma sessão."""
+    if session_id not in sessoes:
+        sessoes[session_id] = InMemoryChatMessageHistory()
+    return sessoes[session_id]
+
+prompt_mem = ChatPromptTemplate.from_messages([
+    ("system", "Você é um assistente amigável que responde em português."),
+    ("placeholder", "{history}"),
+    ("human", "{pergunta}")
+])
+
+cadeia_mem = RunnableWithMessageHistory(
+    prompt_mem | llm,
+    get_session_history=get_history,
+    input_messages_key="pergunta",
+    history_messages_key="history"
+)
+
+print("✅ Cadeia com memória pronta!")
+#+END_SRC
+
+#+BEGIN_SRC python :results output
+r1 = cadeia_mem.invoke(
+    {"pergunta": "Meu nome é Ana e eu estudo engenharia."},
+    config={"configurable": {"session_id": "aula05"}}
+)
+print(f"🤖 {r1.content}")
+#+END_SRC
+
+#+BEGIN_SRC python :results output
+r2 = cadeia_mem.invoke(
+    {"pergunta": "Qual é o meu nome e o que eu estudo?"},
+    config={"configurable": {"session_id": "aula05"}}
+)
+print(f"🤖 {r2.content}")
+#+END_SRC
+
+#+BEGIN_SRC python :results output
+r3 = cadeia_mem.invoke(
+    {"pergunta": "Qual é o meu nome?"},
+    config={"configurable": {"session_id": "nova_sessao"}}
+)
+print(f"🤖 {r3.content}")
+print("👉 Na sessão 'nova_sessao' o modelo não sabe nosso nome!")
+#+END_SRC
+
+* Resumo
+
+- *requests puro* → agente com dict + funções (sem abstração)
+- *ChatOpenAI* → conecta LangChain ao Ollama via endpoint OpenAI-compatible
+- *ChatPromptTemplate* → prompts reutilizáveis com variáveis
+- *RunnableWithMessageHistory* → memória automática
+- O padrão =prompt | llm= é a base de tudo no LangChain
+
+Na S06 vamos adicionar *ferramentas* (calculadora, busca) ao agente!
