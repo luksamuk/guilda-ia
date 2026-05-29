@@ -1,7 +1,7 @@
 #+TITLE: Aula 05 — Estrutura de um Agente (Local)
 #+AUTHOR: Guilda de IA — UFVJM 2026.1
 #+LANGUAGE: pt-BR
-#+PROPERTY: header-args:python :session aula05 :results output
+#+PROPERTY: header-args:python :session aula05 :results output :async yes
 
 * Sobre este notebook
 
