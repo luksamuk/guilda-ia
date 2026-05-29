@@ -6,7 +6,7 @@
 * Sobre este notebook
 
 Este é o *notebook local* para acompanhar a aula 05 sem depender do Colab.
-O modelo roda no llama-swap da máquina local (porta 12434).
+O modelo roda via Ollama local (porta 11434), usando o endpoint OpenAI-compatible.
 
 Usamos o endpoint *OpenAI-compatible* do Ollama (=/v1/chat/completions=) com
 =ChatOpenAI= do =langchain-openai=. Isso funciona com *qualquer* servidor que
@@ -34,7 +34,7 @@ Assim fica claro o que o LangChain abstrai.
 #+BEGIN_SRC python
 import requests
 
-LLM_URL = "http://localhost:12434/v1/chat/completions"
+LLM_URL = "http://localhost:11434/v1/chat/completions"
 
 def criar_agente(instrucoes, max_historico=20):
     return {
@@ -55,7 +55,7 @@ def conversar(agente, mensagem):
     response = requests.post(
         LLM_URL,
         json={
-            "model": "qwen3.5-4b",
+            "model": "gemma4:31b-cloud",
             "messages": messages,
             "stream": False
         }
@@ -82,12 +82,6 @@ print()
 print(conversar(agente, "Qual é o meu nome?"))
 #+END_SRC
 
-#+RESULTS:
-: Olá, Ana! Como posso ajudar você hoje?
-: 
-: 
-: Olá, Ana! Eu sou um assistente amigável e aqui para ajudar você com qualquer dúvida ou tarefa que precisar. Como posso ajudar?
-
 * 1. LangChain + OpenAI-compatible
 
 Montar mensagens na mão funciona, mas é repetitivo. *LangChain* abstrai
@@ -101,8 +95,8 @@ nuvem.
 from langchain_openai import ChatOpenAI
 
 llm = ChatOpenAI(
-    model="qwen3.5-4b",
-    base_url="http://localhost:12434/v1",
+    model="gemma4:31b-cloud",
+    base_url="http://localhost:11434/v1",
     api_key="nao_precisa",  # Ollama local não usa chave
     temperature=0.7
 )
