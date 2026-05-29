@@ -55,7 +55,7 @@ def conversar(agente, mensagem):
     response = requests.post(
         LLM_URL,
         json={
-            "model": "qwen3.5:4b",
+            "model": "qwen3.5-4b",
             "messages": messages,
             "stream": False
         }
@@ -101,7 +101,7 @@ nuvem.
 from langchain_openai import ChatOpenAI
 
 llm = ChatOpenAI(
-    model="qwen3.5:4b",
+    model="qwen3.5-4b",
     base_url="http://localhost:12434/v1",
     api_key="nao_precisa",  # Ollama local não usa chave
     temperature=0.7
