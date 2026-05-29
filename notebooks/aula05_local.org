@@ -111,42 +111,7 @@ print(f"🤖 {resposta.content}")
 #+RESULTS:
 : 6c47a36e-f67b-4dba-a820-96113d2f8a60
 
-* 2. Cadeia com ChatPromptTemplate
-
-Um *prompt template* organiza a instrução do sistema + a pergunta do
-usuário em um formato reutilizável. Encadeamos o template ao LLM com o
-operador =|=.
-
-#+BEGIN_SRC python
-from langchain_core.prompts import ChatPromptTemplate
-
-prompt = ChatPromptTemplate.from_messages([
-    ("system", "Você é um professor de IA que responde em português de forma didática e concisa."),
-    ("human", "{pergunta}")
-])
-
-cadeia = prompt | llm
-
-resposta = cadeia.invoke({"pergunta": "O que é um LLM?"})
-print(f"🤖 {resposta.content}")
-#+END_SRC
-
-#+BEGIN_SRC python
-prompt_trad = ChatPromptTemplate.from_messages([
-    ("system", "Traduza o texto para {idioma}. Responda apenas com a tradução."),
-    ("human", "{texto}")
-])
-
-cadeia_trad = prompt_trad | llm
-
-resposta = cadeia_trad.invoke({
-    "idioma": "inglês",
-    "texto": "A inteligência artificial está transformando a educação."
-})
-print(f"🤖 {resposta.content}")
-#+END_SRC
-
-* 3. Chat com memória
+* 2. Chat com memória
 
 O LLM não lembra de nada sozinho — cada chamada é independente.
 Para ter memória, guardamos o histórico de mensagens e enviamos junto a cada chamada.
@@ -203,8 +168,6 @@ print("👉 Na sessão 'nova_sessao' o modelo não sabe nosso nome!")
 
 - *requests puro* → agente com dict + funções (sem abstração)
 - *ChatOpenAI* → conecta LangChain ao LLM via endpoint OpenAI-compatible
-- *ChatPromptTemplate* → prompts reutilizáveis com variáveis
 - *mensagens manuais* → memória = guardar histórico e enviar junto
-- O padrão =prompt | llm= é a base de tudo no LangChain
 
 Na S06 vamos adicionar *ferramentas* (calculadora, busca) ao agente!
