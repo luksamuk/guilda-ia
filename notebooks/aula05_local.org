@@ -3,7 +3,7 @@
 #+LANGUAGE: pt-BR
 #+PROPERTY: header-args:python :python /home/alchemist/git/guilda-ia/notebooks/.venv/bin/python :session aula05 :results output :async yes
 
-* Sobre este notebook
+#+STARTUP: overview
 
 Este é o *notebook local* para acompanhar a aula 05 sem depender do Colab.
 O modelo roda via Ollama local (porta 11434), usando o endpoint OpenAI-compatible.
@@ -55,7 +55,7 @@ def conversar(agente, mensagem):
     response = requests.post(
         LLM_URL,
         json={
-            "model": "gemma4-e2b:think",
+            "model": "gemma4:e2b",
             "messages": messages,
             "stream": False
         }
@@ -92,7 +92,7 @@ nuvem.
 from langchain_openai import ChatOpenAI
 
 llm = ChatOpenAI(
-    model="gemma4-e2b:think",
+    model="gemma4:e2b",
     base_url="http://localhost:12434/v1",
     api_key="nao_precisa",  # Ollama local não usa chave
     temperature=0.7
@@ -107,58 +107,76 @@ print(f"🤖 {resposta.content}")
 O LLM não lembra de nada sozinho — cada chamada é independente.
 Para ter memória, guardamos o histórico de mensagens e enviamos junto a cada chamada.
 
-A LangChain oferece =RunnableWithMessageHistory=, mas ela foi *deprecated* (vai sumir no LangChain 2.0). A alternativa oficial é LangGraph, que é complexa demais pra noís agora.
+Na seção 0, gerenciamos o histórico manualmente com listas de dicts.
+No LangChain, podemos fazer o mesmo usando =InMemoryChatMessageHistory= —
+que é basicamente uma lista tipada. A lógica é *idêntica*:
 
-A abordagem mais simples e didática? Gerenciar o histórico na mão — igual já fazemos com =requests=, mas usando o LangChain.
+1. Guardar mensagens no histórico
+2. Passar o histórico para o modelo
+3. Salvar a resposta de volta no histórico
 
 #+BEGIN_SRC python
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from langchain_core.chat_history import InMemoryChatMessageHistory
+from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.prompts import ChatPromptTemplate
 
-# Histórico por sessão — um dicionário simples
-sessoes = {}
+# Sessão com histórico (sem gerenciamento de sessões — uma variável simples)
+session = InMemoryChatMessageHistory()
 
-def chat_com_memoria(sessao_id, pergunta):
-    # Pega (ou cria) o histórico da sessão
-    if sessao_id not in sessoes:
-        sessoes[sessao_id] = []
+# Prompt com placeholder para o histórico
+prompt_mem = ChatPromptTemplate.from_messages([
+    ("system", "Você é um assistente amigável que responde em português."),
+    ("placeholder", "{history}"),
+    ("human", "{pergunta}")
+])
 
-    historico = sessoes[sessao_id]
+cadeia_mem = prompt_mem | llm
 
-    # Monta as mensagens: system prompt + histórico + pergunta nova
-    mensagens = [SystemMessage(content="Você é um assistente amigável que responde em português.")]
-    mensagens.extend(historico)
-    mensagens.append(HumanMessage(content=pergunta))
-
-    # Chama o LLM
-    resposta = llm.invoke(mensagens)
-
-    # Guarda a troca no histórico
-    historico.append(HumanMessage(content=pergunta))
-    historico.append(AIMessage(content=resposta.content))
-
-    return resposta.content
-
-print("✅ Chat com memória pronto!")
+print("✅ Cadeia com memória pronta!")
 #+END_SRC
 
 #+BEGIN_SRC python
-print(chat_com_memoria("aula05", "Meu nome é Ana e eu estudo engenharia."))
+# Primeira mensagem — adicionamos ao histórico manualmente
+r1 = cadeia_mem.invoke({
+    "pergunta": "Meu nome é Ana e eu estudo engenharia.",
+    "history": session.messages
+})
+print(f"🤖 {r1.content}")
+
+session.add_message(HumanMessage(content="Meu nome é Ana e eu estudo engenharia."))
+session.add_message(AIMessage(content=r1.content))
 #+END_SRC
 
 #+BEGIN_SRC python
-print(chat_com_memoria("aula05", "Qual é o meu nome e o que eu estudo?"))
+# Segunda mensagem — o modelo lembra do nome!
+r2 = cadeia_mem.invoke({
+    "pergunta": "Qual é o meu nome e o que eu estudo?",
+    "history": session.messages
+})
+print(f"🤖 {r2.content}")
+
+session.add_message(HumanMessage(content="Qual é o meu nome e o que eu estudo?"))
+session.add_message(AIMessage(content=r2.content))
 #+END_SRC
 
 #+BEGIN_SRC python
-# Sessão diferente = memória zerada
-print(chat_com_memoria("nova_sessao", "Qual é o meu nome?"))
-print("👉 Na sessão 'nova_sessao' o modelo não sabe nosso nome!")
+# Sessão zerada = sem memória
+session_nova = InMemoryChatMessageHistory()
+
+r3 = cadeia_mem.invoke({
+    "pergunta": "Qual é o meu nome?",
+    "history": session_nova.messages  # histórico vazio!
+})
+print(f"🤖 {r3.content}")
+print("👉 Na sessão nova o modelo não sabe nosso nome!")
 #+END_SRC
 
 * Resumo
 
 - *requests puro* → agente com dict + funções (sem abstração)
 - *ChatOpenAI* → conecta LangChain ao LLM via endpoint OpenAI-compatible
-- *mensagens manuais* → memória = guardar histórico e enviar junto
+- *ChatPromptTemplate* → prompts reutilizáveis com variáveis
+- *InMemoryChatMessageHistory* → histórico tipado (mesma lógica da seção 0)
+- O padrão =prompt | llm= é a base de tudo no LangChain
 
 Na S06 vamos adicionar *ferramentas* (calculadora, busca) ao agente!
