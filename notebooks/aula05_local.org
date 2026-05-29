@@ -1,6 +1,7 @@
 #+TITLE: Aula 05 — Estrutura de um Agente (Local)
 #+AUTHOR: Guilda de IA — UFVJM 2026.1
 #+LANGUAGE: pt-BR
+#+PROPERTY: header-args:python :session aula05 :results output
 
 * Sobre este notebook
 
@@ -22,7 +23,7 @@ sabemos: =requests.post= + dicionários Python.
 
 Assim fica claro o que o LangChain abstrai.
 
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
 import requests
 
 LLM_URL = "http://localhost:12434/v1/chat/completions"
@@ -62,7 +63,7 @@ def conversar(agente, mensagem):
 print("✅ Agente manual com requests pronto!")
 #+END_SRC
 
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
 agente = criar_agente("Você é um assistente amigável que responde em português.")
 
 print(conversar(agente, "Oi! Meu nome é Ana."))
@@ -79,7 +80,7 @@ O endpoint OpenAI-compatible do Ollama (=/v1/chat/completions=) funciona com
 =ChatOpenAI= do =langchain-openai=: mesmo modelo local, sem enviar nada pra
 nuvem.
 
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
 from langchain_openai import ChatOpenAI
 
 llm = ChatOpenAI(
@@ -99,7 +100,7 @@ Um *prompt template* organiza a instrução do sistema + a pergunta do
 usuário em um formato reutilizável. Encadeamos o template ao LLM com o
 operador =|=.
 
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
 from langchain_core.prompts import ChatPromptTemplate
 
 prompt = ChatPromptTemplate.from_messages([
@@ -113,7 +114,7 @@ resposta = cadeia.invoke({"pergunta": "O que é um LLM?"})
 print(f"🤖 {resposta.content}")
 #+END_SRC
 
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
 prompt_trad = ChatPromptTemplate.from_messages([
     ("system", "Traduza o texto para {idioma}. Responda apenas com a tradução."),
     ("human", "{texto}")
@@ -133,7 +134,7 @@ print(f"🤖 {resposta.content}")
 =RunnableWithMessageHistory= mantém o histórico da conversa automaticamente.
 O modelo "lembra" das mensagens anteriores dentro da mesma sessão.
 
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.chat_history import InMemoryChatMessageHistory
 
@@ -161,7 +162,7 @@ cadeia_mem = RunnableWithMessageHistory(
 print("✅ Cadeia com memória pronta!")
 #+END_SRC
 
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
 r1 = cadeia_mem.invoke(
     {"pergunta": "Meu nome é Ana e eu estudo engenharia."},
     config={"configurable": {"session_id": "aula05"}}
@@ -169,7 +170,7 @@ r1 = cadeia_mem.invoke(
 print(f"🤖 {r1.content}")
 #+END_SRC
 
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
 r2 = cadeia_mem.invoke(
     {"pergunta": "Qual é o meu nome e o que eu estudo?"},
     config={"configurable": {"session_id": "aula05"}}
@@ -177,7 +178,7 @@ r2 = cadeia_mem.invoke(
 print(f"🤖 {r2.content}")
 #+END_SRC
 
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
 r3 = cadeia_mem.invoke(
     {"pergunta": "Qual é o meu nome?"},
     config={"configurable": {"session_id": "nova_sessao"}}
