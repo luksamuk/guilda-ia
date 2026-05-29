@@ -6,7 +6,7 @@
 * Sobre este notebook
 
 Este é o *notebook local* para acompanhar a aula 05 sem depender do Colab.
-O modelo roda via Ollama local (porta 11434), usando o endpoint OpenAI-compatible.
+O modelo roda no llama-swap local (porta 12434), usando o endpoint OpenAI-compatible.
 
 Usamos o endpoint *OpenAI-compatible* do Ollama (=/v1/chat/completions=) com
 =ChatOpenAI= do =langchain-openai=. Isso funciona com *qualquer* servidor que
@@ -34,7 +34,7 @@ Assim fica claro o que o LangChain abstrai.
 #+BEGIN_SRC python
 import requests
 
-LLM_URL = "http://localhost:11434/v1/chat/completions"
+LLM_URL = "http://localhost:12434/v1/chat/completions"
 
 def criar_agente(instrucoes, max_historico=20):
     return {
@@ -96,7 +96,7 @@ from langchain_openai import ChatOpenAI
 
 llm = ChatOpenAI(
     model="qwen3.5-4b",
-    base_url="http://localhost:11434/v1",
+    base_url="http://localhost:12434/v1",
     api_key="nao_precisa",  # Ollama local não usa chave
     temperature=0.7
 )
