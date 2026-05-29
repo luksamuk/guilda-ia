@@ -16,19 +16,12 @@ fale a API da OpenAI — Ollama, vLLM, TGI, Gemini, OpenAI — bastando trocar
 O =ChatOllama= existe, mas o endpoint OpenAI-compatible é o padrão da
 indústria. Aprender assim te prepara pra trocar de provedor mudando uma linha.
 
-* Setup — Execute e prossiga
+* Setup — Criar o venv (rodar uma vez no terminal)
 
-#+BEGIN_SRC bash
-cd "$(dirname "$0")"
-if [ ! -d .venv ]; then
-    echo "📦 Criando venv..."
-    uv venv .venv
-    echo "📦 Instalando dependências..."
-    uv pip install langchain-openai langchain-core requests --python .venv/bin/python
-    echo "✅ Pronto!"
-else
-    echo "✅ Venv já existe, pulando setup."
-fi
+#+BEGIN_SRC text
+cd ~/git/guilda-ia/notebooks
+uv venv .venv
+uv pip install langchain-openai langchain-core requests --python .venv/bin/python
 #+END_SRC
 
 * 0. Agente na Mão — =requests= puro
