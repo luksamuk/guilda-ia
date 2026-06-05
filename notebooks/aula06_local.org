@@ -13,15 +13,12 @@ Usamos o endpoint *OpenAI-compatible* do llama-swap (=/v1/chat/completions=) com
 fale a API da OpenAI — Ollama, vLLM, TGI, Gemini, OpenAI — bastando trocar
 =base_url= e =api_key=.
 
-O =ChatOllama= existe, mas o endpoint OpenAI-compatible é o padrão da
-indústria. Aprender assim te prepara pra trocar de provedor mudando uma linha.
-
 * Setup — Criar o venv (rodar uma vez no terminal)
 
 #+BEGIN_SRC text
 cd ~/git/guilda-ia/notebooks
 uv venv .venv
-uv pip install langchain-openai langchain-core langchain requests --python .venv/bin/python
+uv pip install langchain-openai langchain-core langchain langgraph requests --python .venv/bin/python
 #+END_SRC
 
 * 1. Ferramentas com =@tool=
@@ -106,16 +103,18 @@ from langchain.agents import create_agent
 
 agente = create_agent(llm, [calcular, obter_horario])
 
-# Uma linha — decidir, executar, responder
-resultado = agente.invoke({"input": "Quanto é 234 vezes 987?"})
-print(resultado["output"])
+resultado = agente.invoke(
+    {"messages": "Quanto é 234 vezes 987?"})
+print(resultado["messages"][-1].content)
 #+END_SRC
 
 #+BEGIN_SRC python
 # Testar com horário e pergunta sem ferramenta
-print(agente.invoke({"input": "Que horas são?"})["output"])
+print(agente.invoke(
+    {"messages": "Que horas são?"})["messages"][-1].content)
 print()
-print(agente.invoke({"input": "Qual a capital da França?"})["output"])
+print(agente.invoke(
+    {"messages": "Qual a capital da França?"})["messages"][-1].content)
 #+END_SRC
 
 * 4. Um gostinho de *async*
@@ -125,10 +124,10 @@ Mas existe =ainvoke()= (com *a* de async) que não bloqueia:
 
 #+BEGIN_SRC python
 # Síncrono (o que vimos)
-# resposta = agente.invoke({"input": "Quanto é 234 vezes 987?"})
+# resultado = agente.invoke({"messages": "Quanto é 234 vezes 987?"})
 
 # Assíncrono — não bloqueia enquanto espera
-# resposta = await agente.ainvoke({"input": "Quanto é 234 vezes 987?"})
+# resultado = await agente.ainvoke({"messages": "Quanto é 234 vezes 987?"})
 
 # Próxima aula vamos usar isso com MCP!
 print("⏭️ Async será explorado na Aula 07 com MCP!")
