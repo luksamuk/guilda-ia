@@ -22,29 +22,31 @@ uv pip install langchain-openai langchain-core langchain langgraph requests --py
 
 =@tool= transforma uma função Python em ferramenta pro LLM. *Pydantic* faz parsing e validação automático — sem =eval=, sem AST.
 
+⚠️ *Importante:* nomes de funções e descrições em inglês. Modelos de linguagem entendem tool calling melhor em inglês — os valores dos argumentos e a resposta podem ser em português.
+
 #+BEGIN_SRC python
 from langchain_core.tools import tool
 from datetime import datetime
 
 @tool
-def calcular(a: float, b: float, operacao: str) -> float:
+def calculate(a: float, b: float, operation: str) -> float:
     """Performs a math operation between two numbers and returns the exact result.
     Use when you need to do calculations.
-    operacao: 'soma', 'subtracao', 'multiplicacao', 'divisao'
+    operation: 'add', 'subtract', 'multiply', 'divide'
     """
-    ops = {'soma': a+b, 'subtracao': a-b, 'multiplicacao': a*b, 'divisao': a/b if b != 0 else 'Erro: divisão por zero'}
-    return ops.get(operacao, f"Erro: operação '{operacao}' não suportada")
+    ops = {'add': a+b, 'subtract': a-b, 'multiply': a*b, 'divide': a/b if b != 0 else 'Error: division by zero'}
+    return ops.get(operation, f"Error: operation '{operation}' not supported")
 
 @tool
-def obter_horario() -> str:
-    """Returns the current date and time. Use when the user asks about date, time, or 'what time is it'."""
+def get_time() -> str:
+    """Returns the current date and time. Use when the user asks about the date, time, or what time it is."""
     return datetime.now().strftime('%d/%m/%Y %H:%M:%S')
 
-print("✅ Ferramentas criadas:", [calcular.name, obter_horario.name])
+print("✅ Ferramentas criadas:", [calculate.name, get_time.name])
 #+END_SRC
 
 #+RESULTS:
-: ✅ Ferramentas criadas: ['calcular', 'obter_horario']
+: ✅ Ferramentas criadas: ['calculate', 'get_time']
 
 * 2. Ciclo manual: =bind_tools=
 
@@ -61,7 +63,7 @@ llm = ChatOpenAI(
     temperature=0,
 )
 
-llm_com_ferramentas = llm.bind_tools([calcular, obter_horario])
+llm_com_ferramentas = llm.bind_tools([calculate, get_time])
 
 # Passo 1: O LLM decide, mas NÃO executa
 resposta = llm_com_ferramentas.invoke("Quanto é 234 vezes 987?")
@@ -71,17 +73,26 @@ pprint(resposta.tool_calls)
 #+END_SRC
 
 #+RESULTS:
-: d186c2f1-518a-4dc6-bbed-051003549c67
+: Content: '\n'
+: 
+: Tool calls:
+: [{'args': {'a': 234, 'b': 987, 'operation': 'multiply'},
+:   'id': 'Qm4v0BlBAzSgUAjogRu5gIRmQB7J7Mfy',
+:   'name': 'calculate',
+:   'type': 'tool_call'}]
 
 #+BEGIN_SRC python
 # Passo 2: Executar a ferramenta
 tc = resposta.tool_calls[0]
-if tc['name'] == 'calcular':
-    resultado = calcular.invoke(tc['args'])
-elif tc['name'] == 'obter_horario':
-    resultado = obter_horario.invoke(tc['args'])
+if tc['name'] == 'calculate':
+    resultado = calculate.invoke(tc['args'])
+elif tc['name'] == 'get_time':
+    resultado = get_time.invoke(tc['args'])
 print(f"Resultado da ferramenta: {resultado}")  # 230958.0
 #+END_SRC
+
+#+RESULTS:
+: Resultado da ferramenta: 230958.0
 
 #+BEGIN_SRC python
 # Passo 3: Resultado volta pro LLM
@@ -97,6 +108,9 @@ resposta_final = llm_com_ferramentas.invoke(mensagens)
 print(resposta_final.content)
 #+END_SRC
 
+#+RESULTS:
+: 234 vezes 987 é 230,958.
+
 * 3. Ciclo automático: =create_agent=
 
 O ciclo manual é bom pra aprender. Na prática, =create_agent= faz tudo automaticamente.
@@ -104,12 +118,15 @@ O ciclo manual é bom pra aprender. Na prática, =create_agent= faz tudo automat
 #+BEGIN_SRC python
 from langchain.agents import create_agent
 
-agente = create_agent(llm, [calcular, obter_horario])
+agente = create_agent(llm, [calculate, get_time])
 
 resultado = agente.invoke(
     {"messages": "Quanto é 234 vezes 987?"})
 print(resultado["messages"][-1].content)
 #+END_SRC
+
+#+RESULTS:
+: 234 vezes 987 é 230,958.
 
 #+BEGIN_SRC python
 # Testar com horário e pergunta sem ferramenta
@@ -119,6 +136,12 @@ print()
 print(agente.invoke(
     {"messages": "Qual a capital da França?"})["messages"][-1].content)
 #+END_SRC
+
+#+RESULTS:
+: The current date and time is 05/06/2026 03:03:55. Let me know if you need anything else!
+: 
+: 
+: The capital of France is Paris.
 
 * 4. Um gostinho de *async*
 
