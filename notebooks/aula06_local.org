@@ -121,15 +121,19 @@ print(agente.invoke(
 Todas as chamadas até agora usam =invoke()= — síncrono, o código espera.
 Mas existe =ainvoke()= (com *a* de async) que não bloqueia:
 
+Quem conhece JavaScript pode pensar em =ainvoke()= como uma *Promise* —
+enquanto ela resolve, seu código pode fazer outras coisas.
+
 #+BEGIN_SRC python
-# Síncrono (o que vimos)
-# resultado = agente.invoke({"messages": "Quanto é 234 vezes 987?"})
+import asyncio
 
-# Assíncrono — não bloqueia enquanto espera
-# resultado = await agente.ainvoke({"messages": "Quanto é 234 vezes 987?"})
+async def conversar():
+    future = agente.ainvoke({"messages": "Quanto é 234 vezes 987?"})
+    print("Processando...")  # roda imediatamente, sem esperar
+    resultado = await future       # agora espera o resultado
+    print(resultado["messages"][-1].content)
 
-# Próxima aula vamos usar isso com MCP!
-print("⏭️ Async será explorado na Aula 07 com MCP!")
+asyncio.run(conversar())
 #+END_SRC
 
 * Resumo
