@@ -1,109 +1,43 @@
-#+TITLE: Demo — LFM2.5-VL-Extract (Extração Estruturada)
-#+AUTHOR: Guilda de IA — UFVJM 2026.1
-#+LANGUAGE: pt-BR
-#+PROPERTY: header-args:python :python /home/alchemist/git/guilda-ia/notebooks/.venv/bin/python :session demo_extract :results output :async yes
+#+TITLE: Demo — LFM2.5-VL-Extract
+#+PROPERTY: header-args:python :results output
 
-#+STARTUP: overview
+* Extrair dados estruturados de imagem
 
-* A ideia
-
-VLMs tradicionais retornam *texto livre*: você pergunta "o que tem nessa imagem?"
-e recebe um parágrafo descritivo. Depois precisa *parsear* esse texto com regex,
-LLM secundário, ou código frágil pra extrair dados.
-
-O *LFM2.5-VL-Extract* faz diferente: você passa uma imagem + uma lista de campos
-(em YAML), e ele devolve *JSON estruturado* direto. Sem camada de parsing.
-
-Isso é um **LLM de propósito específico**: não precisa de frontier model pra
-tudo. Pra extração estruturada, 1.6B bastam.
-
-* Setup (rodar uma vez no terminal)
-
-#+BEGIN_SRC text
-cd ~/git/guilda-ia/notebooks
-uv pip install requests --python .venv/bin/python
-#+END_SRC
-
-* A imagem
-
-Vamos extrair dados de uma imagem de redação do ENEM:
-
-[[~/git/sprachspiel/assets/mixed/redacao.png]]
-
-* Definir os campos
-
-O system prompt descreve os campos em YAML — o modelo usa isso como schema:
+file:/home/alchemist/git/sprachspiel/assets/mixed/redacao.png
 
 #+BEGIN_SRC python
+import requests, base64, json
+
+LLM_URL = "http://localhost:12434/v1/chat/completions"
+MODEL = "lfm2.5-vl-1.6b-extract"
+IMG_PATH = "/home/alchemist/git/sprachspiel/assets/mixed/redacao.png"
+
 SYSTEM_PROMPT = """You are an extraction model. Extract the following fields from the image and return them as JSON:
 text_title: The title of the document
 author: The author's name or source
 subject: The subject or topic
 word_count_approx: Approximate word count"""
 
-print("✅ Schema definido!")
-#+END_SRC
-
-* Extrair dados da imagem
-
-#+BEGIN_SRC python
-import requests, json, base64, time
-
-LLM_URL = "http://localhost:12434/v1/chat/completions"
-MODEL = "lfm2.5-vl-1.6b-extract"
-IMG_PATH = "/home/alchemist/git/sprachspiel/assets/mixed/redacao.png"
-
 with open(IMG_PATH, "rb") as f:
     img_b64 = base64.b64encode(f.read()).decode()
 
-payload = {
+response = requests.post(LLM_URL, json={
     "model": MODEL,
     "messages": [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": [
-            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}},
-            {"type": "text", "text": "Extract the fields from this document."}
+            {"type": "image_url",
+             "image_url": {"url": f"data:image/png;base64,{img_b64}"}},
+            {"type": "text",
+             "text": "Extract the fields from this document."}
         ]}
     ],
     "max_tokens": 512,
-    "temperature": 0.1
-}
+    "temperature": 0.1,
+}, timeout=60)
 
-start = time.time()
-response = requests.post(LLM_URL, json=payload, timeout=60)
-elapsed = time.time() - start
-
-data = response.json()
-content = data["choices"][0]["message"]["content"]
-tokens = data.get("usage", {}).get("completion_tokens", "?")
-
-print(f"⏱️  {elapsed:.1f}s ({tokens} tokens)")
-print()
+content = response.json()["choices"][0]["message"]["content"]
 result = json.loads(content)
 for key, value in result.items():
     print(f"  {key}: {value}")
 #+END_SRC
-
-* Comparação: VLM genérico vs Extract
-
-- *VLM genérico* (e.g. Gemma4-2B): devolve texto livre → precisa parsear depois
-- *Extract*: devolve JSON → já tá pronto pra consumo por código/pipline
-
-#+BEGIN_SRC python
-# Com um VLM genérico, você faria algo assim:
-# resposta = llm.invoke("Descreva esta redação")
-# título = regex_parse(resposta)  # frágil!
-
-# Com Extract, o resultado já é JSON estruturado:
-print("Formato de saída: JSON direto, sem parsing necessário.")
-print("Campos garantidos pelo schema do system prompt.")
-print("Modelo: 1.6B params, ~2.7 GB VRAM, <1s de inferência.")
-#+END_SRC
-
-* Resumo
-
-- **LFM2.5-VL-Extract** é um VLM de *propósito específico*: extração estruturada
-- Passa imagem + YAML fields → recebe JSON, sem camada de parsing
-- **1.6B params**, roda em qualquer GPU com 3 GB VRAM
-- Não precisa de frontier model pra tarefas bem definidas!
-- Arquitetura =lfm2= (Liquid AI) — requer llama.cpp upstream (não ik)

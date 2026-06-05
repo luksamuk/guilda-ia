@@ -42,7 +42,12 @@ def get_time() -> str:
     """Returns the current date and time. Use when the user asks about the date, time, or what time it is."""
     return datetime.now().strftime('%d/%m/%Y %H:%M:%S')
 
-print("✅ Ferramentas criadas:", [calculate.name, get_time.name])
+@tool
+def get_word_length(word: str) -> int:
+    """Returns the number of characters in a word. Use when the user asks about the length of a word or how many letters it has."""
+    return len(word)
+
+print("✅ Ferramentas criadas:", [calculate.name, get_time.name, get_word_length.name])
 #+END_SRC
 
 * 2. Ciclo manual: =bind_tools=
@@ -60,7 +65,7 @@ llm = ChatOpenAI(
     temperature=0,
 )
 
-llm_com_ferramentas = llm.bind_tools([calculate, get_time])
+llm_com_ferramentas = llm.bind_tools([calculate, get_time, get_word_length])
 
 # Passo 1: O LLM decide, mas NÃO executa
 resposta = llm_com_ferramentas.invoke("Quanto é 234 vezes 987?")
@@ -76,6 +81,8 @@ if tc['name'] == 'calculate':
     resultado = calculate.invoke(tc['args'])
 elif tc['name'] == 'get_time':
     resultado = get_time.invoke(tc['args'])
+elif tc['name'] == 'get_word_length':
+    resultado = get_word_length.invoke(tc['args'])
 print(f"Resultado da ferramenta: {resultado}")  # 230958.0
 #+END_SRC
 
@@ -100,7 +107,7 @@ O ciclo manual é bom pra aprender. Na prática, =create_agent= faz tudo automat
 #+BEGIN_SRC python
 from langchain.agents import create_agent
 
-agente = create_agent(llm, [calculate, get_time])
+agente = create_agent(llm, [calculate, get_time, get_word_length])
 
 resultado = agente.invoke(
     {"messages": "Quanto é 234 vezes 987?"})
@@ -135,6 +142,15 @@ async def conversar():
 
 asyncio.run(conversar())
 #+END_SRC
+
+#+RESULTS:
+: Processando...
+: 
+: O produto de 234 vezes 987 é 230,958.
+
+⚠️ Em notebooks Jupyter/Colab, =asyncio.run()= falha com "cannot be called from a running event loop".
+Solução: instalar =nest_asyncio= e chamar =nest_asyncio.apply()= antes de =asyncio.run()=.
+Isso é necessário por limitação de como notebooks gerenciam o event loop — não é preciso em scripts Python normais.
 
 * Resumo
 
