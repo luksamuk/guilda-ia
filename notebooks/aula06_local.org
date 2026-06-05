@@ -50,6 +50,9 @@ def get_word_length(word: str) -> int:
 print("✅ Ferramentas criadas:", [calculate.name, get_time.name, get_word_length.name])
 #+END_SRC
 
+#+RESULTS:
+: ✅ Ferramentas criadas: ['calculate', 'get_time', 'get_word_length']
+
 * 2. Ciclo manual: =bind_tools=
 
 =llm.bind_tools()= registra as ferramentas. O LLM *decide* qual chamar, mas *não executa* — isso fica por sua conta.
@@ -74,6 +77,15 @@ print("\nTool calls:")
 pprint(resposta.tool_calls)
 #+END_SRC
 
+#+RESULTS:
+: Content: '\n'
+: 
+: Tool calls:
+: [{'args': {'a': 234, 'b': 987, 'operation': 'multiply'},
+:   'id': 'UbCnbheBypVDtrW6EdN7pzs2nTWxoMKd',
+:   'name': 'calculate',
+:   'type': 'tool_call'}]
+
 #+BEGIN_SRC python
 # Passo 2: Executar a ferramenta
 tc = resposta.tool_calls[0]
@@ -85,6 +97,9 @@ elif tc['name'] == 'get_word_length':
     resultado = get_word_length.invoke(tc['args'])
 print(f"Resultado da ferramenta: {resultado}")  # 230958.0
 #+END_SRC
+
+#+RESULTS:
+: Resultado da ferramenta: 230958.0
 
 #+BEGIN_SRC python
 # Passo 3: Resultado volta pro LLM
@@ -100,6 +115,9 @@ resposta_final = llm_com_ferramentas.invoke(mensagens)
 print(resposta_final.content)
 #+END_SRC
 
+#+RESULTS:
+: O produto de 234 vezes 987 é 230,958.
+
 * 3. Ciclo automático: =create_agent=
 
 O ciclo manual é bom pra aprender. Na prática, =create_agent= faz tudo automaticamente.
@@ -114,6 +132,9 @@ resultado = agente.invoke(
 print(resultado["messages"][-1].content)
 #+END_SRC
 
+#+RESULTS:
+: O produto de 234 vezes 987 é 230,958.
+
 #+BEGIN_SRC python
 # Testar com horário e pergunta sem ferramenta
 print(agente.invoke(
@@ -122,6 +143,12 @@ print()
 print(agente.invoke(
     {"messages": "Qual a capital da França?"})["messages"][-1].content)
 #+END_SRC
+
+#+RESULTS:
+: Atual da hora: 05/06/2026 17:04:18.
+: 
+: 
+: The capital of France is Paris.
 
 * 4. Um gostinho de *async*
 
@@ -146,7 +173,7 @@ asyncio.run(conversar())
 #+RESULTS:
 : Processando...
 : 
-: O produto de 234 vezes 987 é 230,958.
+: 234 vezes 987 é 230,958.
 
 ⚠️ Em notebooks Jupyter/Colab, =asyncio.run()= falha com "cannot be called from a running event loop".
 Solução: instalar =nest_asyncio= e chamar =nest_asyncio.apply()= antes de =asyncio.run()=.
