@@ -71,6 +71,9 @@ def conversar(agente, mensagem):
 print("✅ Agente manual com requests pronto!")
 #+END_SRC
 
+#+RESULTS:
+: ✅ Agente manual com requests pronto!
+
 #+BEGIN_SRC python
 agente = criar_agente("Você é um assistente amigável que responde em português.")
 
@@ -78,6 +81,13 @@ print(conversar(agente, "Oi! Meu nome é Ana."))
 print()
 print(conversar(agente, "Qual é o meu nome?"))
 #+END_SRC
+
+#+RESULTS:
+: Olá, Ana! É um prazer te conhecer. 😊
+: 
+: Como posso te ajudar hoje? Tem alguma dúvida, ou quer conversar sobre algo?
+: 
+: O seu nome é Ana! 😊
 
 * 1. LangChain + OpenAI-compatible
 
@@ -101,6 +111,9 @@ llm = ChatOpenAI(
 resposta = llm.invoke("O que é LangChain em uma frase?")
 print(f"🤖 {resposta.content}")
 #+END_SRC
+
+#+RESULTS:
+: 🤖 LangChain é um framework que permite aos desenvolvedores construir aplicações complexas e inteligentes, conectando Modelos de Linguagem (LLMs) a fontes de dados e ferramentas externas para realizar tarefas sofisticadas.
 
 * 2. Chat com memória
 
@@ -135,6 +148,9 @@ cadeia_mem = prompt_mem | llm
 print("✅ Cadeia com memória pronta!")
 #+END_SRC
 
+#+RESULTS:
+: ✅ Cadeia com memória pronta!
+
 #+BEGIN_SRC python
 # Primeira mensagem — adicionamos ao histórico manualmente
 r1 = cadeia_mem.invoke({
@@ -146,6 +162,11 @@ print(f"🤖 {r1.content}")
 session.add_message(HumanMessage(content="Meu nome é Ana e eu estudo engenharia."))
 session.add_message(AIMessage(content=r1.content))
 #+END_SRC
+
+#+RESULTS:
+: 🤖 Olá, Ana! Que ótimo te conhecer. Engenharia é uma área super interessante e desafiadora. 🤩
+: 
+: Em que posso te ajudar hoje? Seja com estudos, informações, ideias ou qualquer outra coisa, é só me chamar! 😊
 
 #+BEGIN_SRC python
 # Segunda mensagem — o modelo lembra do nome!
@@ -159,6 +180,9 @@ session.add_message(HumanMessage(content="Qual é o meu nome e o que eu estudo?"
 session.add_message(AIMessage(content=r2.content))
 #+END_SRC
 
+#+RESULTS:
+: 🤖 Com base no que você me disse, seu nome é **Ana** e você estuda **Engenharia**! 😊
+
 #+BEGIN_SRC python
 # Sessão zerada = sem memória
 session_nova = InMemoryChatMessageHistory()
@@ -170,6 +194,12 @@ r3 = cadeia_mem.invoke({
 print(f"🤖 {r3.content}")
 print("👉 Na sessão nova o modelo não sabe nosso nome!")
 #+END_SRC
+
+#+RESULTS:
+: 🤖 Eu sinto muito, mas eu não sei o seu nome. Você não me disse ainda! 😊
+: 
+: Se você quiser me dizer, eu ficarei feliz em saber!
+: 👉 Na sessão nova o modelo não sabe nosso nome!
 
 * Resumo
 

@@ -1,0 +1,142 @@
+#+TITLE: Aula 06 — Primeira Ferramenta (Local)
+#+AUTHOR: Guilda de IA — UFVJM 2026.1
+#+LANGUAGE: pt-BR
+#+PROPERTY: header-args:python :python /home/alchemist/git/guilda-ia/notebooks/.venv/bin/python :session aula06 :results output :async yes
+
+#+STARTUP: overview
+
+Este é o *notebook local* para acompanhar a aula 06 sem depender do Colab.
+O modelo roda via llama-swap local (porta 12434), usando o endpoint OpenAI-compatible.
+
+Usamos o endpoint *OpenAI-compatible* do llama-swap (=/v1/chat/completions=) com
+=ChatOpenAI= do =langchain-openai=. Isso funciona com *qualquer* servidor que
+fale a API da OpenAI — Ollama, vLLM, TGI, Gemini, OpenAI — bastando trocar
+=base_url= e =api_key=.
+
+O =ChatOllama= existe, mas o endpoint OpenAI-compatible é o padrão da
+indústria. Aprender assim te prepara pra trocar de provedor mudando uma linha.
+
+* Setup — Criar o venv (rodar uma vez no terminal)
+
+#+BEGIN_SRC text
+cd ~/git/guilda-ia/notebooks
+uv venv .venv
+uv pip install langchain-openai langchain-core langchain requests --python .venv/bin/python
+#+END_SRC
+
+* 1. Ferramentas com =@tool=
+
+=@tool= transforma uma função Python em ferramenta pro LLM. *Pydantic* faz parsing e validação automático — sem =eval=, sem AST.
+
+#+BEGIN_SRC python
+from langchain_core.tools import tool
+from datetime import datetime
+
+@tool
+def calcular(a: float, b: float, operacao: str) -> float:
+    """Realiza uma operação matemática entre dois números.
+    Use quando precisar fazer cálculos numéricos.
+    operacao: 'soma', 'subtracao', 'multiplicacao', 'divisao'
+    """
+    ops = {'soma': a+b, 'subtracao': a-b, 'multiplicacao': a*b, 'divisao': a/b if b != 0 else 'Erro: divisão por zero'}
+    return ops.get(operacao, f"Erro: operação '{operacao}' não suportada")
+
+@tool
+def obter_horario() -> str:
+    """Retorna a data e hora atual. Use quando o usuário perguntar sobre data ou hora."""
+    return datetime.now().strftime('%d/%m/%Y %H:%M:%S')
+
+print("✅ Ferramentas criadas:", [calcular.name, obter_horario.name])
+#+END_SRC
+
+* 2. Ciclo manual: =bind_tools=
+
+=llm.bind_tools()= registra as ferramentas. O LLM *decide* qual chamar, mas *não executa* — isso fica por sua conta.
+
+#+BEGIN_SRC python
+from pprint import pprint
+from langchain_openai import ChatOpenAI
+
+llm = ChatOpenAI(
+    model="gemma4:e2b",
+    base_url="http://localhost:12434/v1",
+    api_key="nao_precisa",  # llama-swap local não usa chave
+    temperature=0,
+)
+
+llm_com_ferramentas = llm.bind_tools([calcular, obter_horario])
+
+# Passo 1: O LLM decide, mas NÃO executa
+resposta = llm_com_ferramentas.invoke("Quanto é 234 vezes 987?")
+print("Content:", repr(resposta.content))  # string vazia!
+print("\nTool calls:")
+pprint(resposta.tool_calls)
+#+END_SRC
+
+#+BEGIN_SRC python
+# Passo 2: Executar a ferramenta
+tc = resposta.tool_calls[0]
+if tc['name'] == 'calcular':
+    resultado = calcular.invoke(tc['args'])
+elif tc['name'] == 'obter_horario':
+    resultado = obter_horario.invoke(tc['args'])
+print(f"Resultado da ferramenta: {resultado}")  # 230958.0
+#+END_SRC
+
+#+BEGIN_SRC python
+# Passo 3: Resultado volta pro LLM
+from langchain_core.messages import HumanMessage, ToolMessage
+
+mensagens = [
+    HumanMessage(content="Quanto é 234 vezes 987?"),
+    resposta,  # AIMessage com tool_call
+    ToolMessage(content=str(resultado), tool_call_id=tc['id']),
+]
+
+resposta_final = llm_com_ferramentas.invoke(mensagens)
+print(resposta_final.content)
+#+END_SRC
+
+* 3. Ciclo automático: =create_agent=
+
+O ciclo manual é bom pra aprender. Na prática, =create_agent= faz tudo automaticamente.
+
+#+BEGIN_SRC python
+from langchain.agents import create_agent
+
+agente = create_agent(llm, [calcular, obter_horario])
+
+# Uma linha — decidir, executar, responder
+resultado = agente.invoke({"input": "Quanto é 234 vezes 987?"})
+print(resultado["output"])
+#+END_SRC
+
+#+BEGIN_SRC python
+# Testar com horário e pergunta sem ferramenta
+print(agente.invoke({"input": "Que horas são?"})["output"])
+print()
+print(agente.invoke({"input": "Qual a capital da França?"})["output"])
+#+END_SRC
+
+* 4. Um gostinho de *async*
+
+Todas as chamadas até agora usam =invoke()= — síncrono, o código espera.
+Mas existe =ainvoke()= (com *a* de async) que não bloqueia:
+
+#+BEGIN_SRC python
+# Síncrono (o que vimos)
+# resposta = agente.invoke({"input": "Quanto é 234 vezes 987?"})
+
+# Assíncrono — não bloqueia enquanto espera
+# resposta = await agente.ainvoke({"input": "Quanto é 234 vezes 987?"})
+
+# Próxima aula vamos usar isso com MCP!
+print("⏭️ Async será explorado na Aula 07 com MCP!")
+#+END_SRC
+
+* Resumo
+
+- *=@tool=* transforma funções Python em ferramentas (Pydantic faz parsing)
+- *=bind_tools=* → ciclo manual (entender o que acontece)
+- *=create_agent=* → ciclo automático (produzir)
+- O LLM *decide* qual ferramenta usar — você só registra
