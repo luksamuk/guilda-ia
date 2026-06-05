@@ -43,6 +43,9 @@ def obter_horario() -> str:
 print("✅ Ferramentas criadas:", [calcular.name, obter_horario.name])
 #+END_SRC
 
+#+RESULTS:
+: ✅ Ferramentas criadas: ['calcular', 'obter_horario']
+
 * 2. Ciclo manual: =bind_tools=
 
 =llm.bind_tools()= registra as ferramentas. O LLM *decide* qual chamar, mas *não executa* — isso fica por sua conta.
@@ -66,6 +69,9 @@ print("Content:", repr(resposta.content))  # string vazia!
 print("\nTool calls:")
 pprint(resposta.tool_calls)
 #+END_SRC
+
+#+RESULTS:
+: d186c2f1-518a-4dc6-bbed-051003549c67
 
 #+BEGIN_SRC python
 # Passo 2: Executar a ferramenta
