@@ -8,10 +8,7 @@
 Este é o *notebook local* para acompanhar a aula 06 sem depender do Colab.
 O modelo roda via llama-swap local (porta 12434), usando o endpoint OpenAI-compatible.
 
-Usamos o endpoint *OpenAI-compatible* do llama-swap (=/v1/chat/completions=) com
-=ChatOpenAI= do =langchain-openai=. Isso funciona com *qualquer* servidor que
-fale a API da OpenAI — Ollama, vLLM, TGI, Gemini, OpenAI — bastando trocar
-=base_url= e =api_key=.
+Usamos o *LFM2.5-8B-A1B*, um modelo feito pra *tool calling* — hybrids MoE, 8B total com 1.5B ativos por token. O endpoint OpenAI-compatible do llama-swap funciona com =ChatOpenAI= do =langchain-openai= — mesmo modelo local, sem enviar nada pra nuvem.
 
 * Setup — Criar o venv (rodar uma vez no terminal)
 
@@ -55,7 +52,7 @@ from pprint import pprint
 from langchain_openai import ChatOpenAI
 
 llm = ChatOpenAI(
-    model="gemma4:e2b",
+    model="lfm2.5-8b-a1b:think",
     base_url="http://localhost:12434/v1",
     api_key="nao_precisa",  # llama-swap local não usa chave
     temperature=0,
