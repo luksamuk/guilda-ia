@@ -3,20 +3,22 @@
 
 * Extrair dados estruturados de imagem
 
-file:/home/alchemist/git/sprachspiel/assets/mixed/redacao.png
+[[file:demo_extract_image.jpg]]
 
 #+BEGIN_SRC python
 import requests, base64, json
 
 LLM_URL = "http://localhost:12434/v1/chat/completions"
 MODEL = "lfm2.5-vl-1.6b-extract"
-IMG_PATH = "/home/alchemist/git/sprachspiel/assets/mixed/redacao.png"
+IMG_PATH = "demo_extract_image.jpg"
 
-SYSTEM_PROMPT = """You are an extraction model. Extract the following fields from the image and return them as JSON:
-text_title: The title of the document
-author: The author's name or source
-subject: The subject or topic
-word_count_approx: Approximate word count"""
+SYSTEM_PROMPT = """You are an extraction model. Look at the image carefully and extract the following fields. Return ONLY a JSON object with these keys:
+scene_type: The type of scene shown (e.g. "landscape", "portrait", "street", "interior")
+time_of_day: The time of day suggested by the image lighting (e.g. "sunrise", "daytime", "sunset", "night")
+dominant_colors: A list of 3-5 dominant colors in English
+contains_text: true if any visible text or writing exists in the image, false otherwise
+contains_people: true if any people or human figures are visible, false otherwise
+water_visible: true if any body of water is visible, false otherwise"""
 
 with open(IMG_PATH, "rb") as f:
     img_b64 = base64.b64encode(f.read()).decode()
@@ -27,9 +29,9 @@ response = requests.post(LLM_URL, json={
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": [
             {"type": "image_url",
-             "image_url": {"url": f"data:image/png;base64,{img_b64}"}},
+             "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}},
             {"type": "text",
-             "text": "Extract the fields from this document."}
+             "text": "Extract the fields from this image."}
         ]}
     ],
     "max_tokens": 512,
@@ -38,6 +40,5 @@ response = requests.post(LLM_URL, json={
 
 content = response.json()["choices"][0]["message"]["content"]
 result = json.loads(content)
-for key, value in result.items():
-    print(f"  {key}: {value}")
+print(json.dumps(result, indent=2, ensure_ascii=False))
 #+END_SRC
