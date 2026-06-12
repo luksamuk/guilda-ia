@@ -1,0 +1,16 @@
+[project]
+name = "math-server-mcp"
+version = "0.1.0"
+description = "Servidor MCP com ferramentas matemáticas — Guilda de IA S07"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp[cli]>=1.9.0",
+    "langchain>=0.3.0",
+    "langchain-openai>=0.3.0",
+    "langchain-core>=0.3.0",
+    "langgraph>=0.4.0",
+    "langchain-mcp-adapters>=0.1.0",
+]
+
+[scripts]
+serve = "math_server:main"

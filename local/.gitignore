@@ -1,0 +1,20 @@
+# Rust build artifacts (keep release binary)
+target/
+!target/release/
+target/release/*
+!target/release/math-server-mcp
+
+# Python venv
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Emacs/org-mode temp files
+*~
+*.org~
+\#*\#
+.#*
+
+# uv lock (generated)
+uv.lock

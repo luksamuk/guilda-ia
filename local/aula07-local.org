@@ -1,0 +1,369 @@
+#+TITLE: Aula 07 — Múltiplas Ferramentas e MCP (Local)
+#+AUTHOR: Guilda de IA — UFVJM 2026.1
+#+LANGUAGE: pt-BR
+#+PROPERTY: header-args:python :python /home/alchemist/git/guilda-ia/local/math-server-python/.venv/bin/python :session aula07 :results output :async yes
+
+#+STARTUP: overview
+
+Este é o *notebook local* para acompanhar a aula 07 sem depender do Colab.
+O modelo roda via llama-swap local (porta 12434), usando o endpoint OpenAI-compatible.
+
+Usamos o *Gemma 4 E2B* (UD-Q4_K_XL, QAT), um modelo leve com suporte a tool calling. O endpoint OpenAI-compatible do llama-swap funciona com =ChatOpenAI= do =langchain-openai= — mesmo modelo local, sem enviar nada pra nuvem.
+
+* Setup — Criar o venv (rodar uma vez no terminal)
+
+#+BEGIN_SRC text
+cd ~/git/guilda-ia/local/math-server-python
+uv venv .venv
+uv pip install langchain-openai langchain-core langchain langgraph langchain-mcp-adapters mcp --python .venv/bin/python
+#+END_SRC
+
+* 1. Ferramentas (review da S06)
+
+Relembrando: =@tool= + Pydantic = schema automático + validação.
+
+⚠️ Nomes e descrições em *inglês* — modelos entendem tool calling melhor em inglês.
+
+#+BEGIN_SRC python
+from langchain_core.tools import tool
+from langchain_openai import ChatOpenAI
+
+@tool
+def calculate(a: float, b: float, operation: str) -> float:
+    """Performs a mathematical operation between two numbers.
+    Use when you need to perform numeric calculations.
+    Args:
+        a: First number
+        b: Second number
+        operation: One of 'add', 'subtract', 'multiply', 'divide'
+    """
+    ops = {'add': a+b, 'subtract': a-b, 'multiply': a*b, 'divide': a/b}
+    return ops[operation]
+
+@tool
+def get_time() -> str:
+    """Returns the current date and time.
+    Use when the user asks about the current date, time, or 'what time is it'.
+    """
+    from datetime import datetime
+    return datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+
+@tool
+def get_word_length(word: str) -> int:
+    """Returns the number of characters in a word.
+    Use when the user asks about the length of a word or how many letters it has.
+    """
+    return len(word)
+
+llm = ChatOpenAI(
+    model="gemma4-e2b",
+    base_url="http://localhost:12434/v1",
+    api_key="nao_precisa",
+    temperature=0,
+)
+
+print("✅ Ferramentas definidas e LLM conectado")
+#+END_SRC
+
+* 2. Chamadas encadeadas
+
+=create_agent= repete Thought→Action→Observation automaticamente quando a pergunta requer 2+ ferramentas em sequência.
+
+#+BEGIN_SRC python
+from langchain.agents import create_agent
+
+ferramentas = [calculate, get_time, get_word_length]
+agente = create_agent(llm, ferramentas)
+
+# Pergunta que requer encadeamento: multiplicar + somar
+resultado = agente.invoke({"messages": "Quanto é 234 vezes 987 mais 100?"})
+print(resultado["messages"][-1].content)
+#+END_SRC
+
+* 3. Descrições conflitantes
+
+Duas ferramentas com descrições vagas → LLM confunde.
+Duas ferramentas com descrições específicas → LLM distingue.
+
+#+BEGIN_SRC python
+# ❌ Descrições vagas
+@tool
+def find_word_meaning_bad(query: str) -> str:
+    """Busca informações sobre uma palavra."""
+    return f"Definição de {query}: ..."
+
+@tool
+def find_word_rhymes_bad(query: str) -> str:
+    """Busca informações sobre uma palavra."""
+    return f"Rimas de {query}: ..."
+
+# ✅ Descrições específicas
+@tool
+def find_word_meaning(query: str) -> str:
+    """Procura o significado e a definição de uma palavra no dicionário.
+    Use quando o usuário perguntar 'o que significa X' ou 'definição de X'.
+    """
+    return f"Definição de {query}: significa..."
+
+@tool
+def find_word_rhymes(query: str) -> str:
+    """Encontra palavras que rimam com uma palavra dada.
+    Use quando o usuário pedir rimas, palavras com som parecido, ou ajuda com poesia.
+    """
+    return f"Rimas de {query}: ..."
+
+# Comparar
+agente_vago = create_agent(llm, [find_word_meaning_bad, find_word_rhymes_bad])
+r1 = agente_vago.invoke({"messages": "O que significa 'serendipidade'?"})
+print("=" * 60)
+print("❌ Com descrições VAGAS:")
+print("=" * 60)
+for msg in r1["messages"]:
+    print(f"  [{msg.type}] {msg.content if msg.content else msg.tool_calls}")
+
+agente_especifico = create_agent(llm, [find_word_meaning, find_word_rhymes])
+r2 = agente_especifico.invoke({"messages": "O que significa 'serendipidade'?"})
+print("\n" + "=" * 60)
+print("✅ Com descrições ESPECÍFICAS:")
+print("=" * 60)
+for msg in r2["messages"]:
+    print(f"  [{msg.type}] {msg.content if msg.content else msg.tool_calls}")
+#+END_SRC
+
+* 4. Debug de ferramentas
+
+Problemas comuns:
+- LLM chama ferramenta errada → melhore a descrição
+- Argumentos errados → documente valores possíveis
+- ValidationError → Pydantic mostra erro claro (bom sinal)
+
+#+BEGIN_SRC python
+perguntas_debug = [
+    "Que horas são?",
+    "Quanto é 100 + 200?",
+    "Quantas letras tem 'Python'?",
+]
+
+agente_debug = create_agent(llm, [calculate, get_time, get_word_length])
+
+for pergunta in perguntas_debug:
+    print(f"\n📝 {pergunta}")
+    resultado = agente_debug.invoke({"messages": pergunta})
+    print(f"   → {resultado['messages'][-1].content}")
+#+END_SRC
+
+* 5. Ferramentas externas via MCP
+
+*MCP* (Model Context Protocol) = protocolo padrão para ferramentas de IA.
+
+O servidor MCP está em um arquivo separado — veja: [[file:math-server-python/math_server.py][math_server.py]]
+
+Para rodar o servidor stdio (em outro terminal):
+
+#+BEGIN_SRC text
+cd ~/git/guilda-ia/local/math-server-python && uv run math_server.py
+#+END_SRC
+
+** Cliente MCP (stdio)
+
+⚠️ No Colab, usamos =errlog=subprocess.DEVNULL= para evitar o bug do =fileno()=.
+Localmente, funciona direto.
+
+#+BEGIN_SRC python
+import asyncio
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+from langchain_mcp_adapters.tools import load_mcp_tools
+from langchain.agents import create_agent
+from langchain_openai import ChatOpenAI
+
+llm = ChatOpenAI(model="gemma4-e2b", base_url="http://localhost:12434/v1", api_key="nao_precisa", temperature=0)
+
+MCP_DIR = "/home/alchemist/git/guilda-ia/local/math-server-python"
+
+server_params = StdioServerParameters(
+    command=f"{MCP_DIR}/.venv/bin/python",
+    args=[f"{MCP_DIR}/math_server.py"],
+)
+
+async def main():
+    async with stdio_client(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            mcp_tools = await load_mcp_tools(session)
+
+            agente_mcp = create_agent(llm, mcp_tools)
+
+            resultado = await agente_mcp.ainvoke(
+                {"messages": "Quanto é 3 + 5 multiplicado por 2?"}
+            )
+            print(resultado["messages"][-1].content)
+
+asyncio.run(main())
+#+END_SRC
+
+* 6. MultiServerMCPClient
+
+Conectando dois servidores MCP ao mesmo agente.
+
+O segundo servidor (strings) está em [[file:math-server-python/string_server.py][string_server.py]]
+
+#+BEGIN_SRC python
+import asyncio
+from contextlib import AsyncExitStack
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+from langchain_mcp_adapters.tools import load_mcp_tools
+from langchain.agents import create_agent
+from langchain_openai import ChatOpenAI
+
+llm = ChatOpenAI(model="gemma4-e2b", base_url="http://localhost:12434/v1", api_key="nao_precisa", temperature=0)
+
+MCP_DIR = "/home/alchemist/git/guilda-ia/local/math-server-python"
+
+SERVIDORES = [
+    StdioServerParameters(command=f"{MCP_DIR}/.venv/bin/python", args=[f"{MCP_DIR}/math_server.py"]),
+    StdioServerParameters(command=f"{MCP_DIR}/.venv/bin/python", args=[f"{MCP_DIR}/string_server.py"]),
+]
+
+async def main():
+    async with AsyncExitStack() as stack:
+        tools = []
+        for params in SERVIDORES:
+            read, write = await stack.enter_async_context(stdio_client(params))
+            session = await stack.enter_async_context(ClientSession(read, write))
+            await session.initialize()
+            tools.extend(await load_mcp_tools(session))
+
+        agente = create_agent(llm, tools)
+        r = await agente.ainvoke(
+            {"messages": "Quanto é 10 + 5? E inverta a palavra 'Guilda'."}
+        )
+        print(r["messages"][-1].content)
+
+asyncio.run(main())
+#+END_SRC
+
+* 7. Servidor MCP em Rust
+
+A mesma funcionalidade do =math_server.py=, mas compilada como binário Rust.
+
+Veja o código-fonte: [[file:math-server-rust/src/main.rs][main.rs]]
+
+O binário compilado está em:
+=/home/alchemist/git/guilda-ia/local/math-server-rust/target/release/math-server-mcp=
+
+*Vantagem:* binário único, sem dependências Python, inicia instantaneamente.
+
+#+BEGIN_SRC python
+import asyncio
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+from langchain_mcp_adapters.tools import load_mcp_tools
+from langchain.agents import create_agent
+from langchain_openai import ChatOpenAI
+
+llm = ChatOpenAI(model="gemma4-e2b", base_url="http://localhost:12434/v1", api_key="nao_precisa", temperature=0)
+
+RUST_BIN = "/home/alchemist/git/guilda-ia/local/math-server-rust/target/release/math-server-mcp"
+
+server_params = StdioServerParameters(command=RUST_BIN, args=[])
+
+async def main():
+    async with stdio_client(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            mcp_tools = await load_mcp_tools(session)
+
+            agente = create_agent(llm, mcp_tools)
+            resultado = await agente.ainvoke(
+                {"messages": "Use a ferramenta add para somar 3 e 5."}
+            )
+            for msg in resultado["messages"]:
+                if msg.content:
+                    print(f"[{msg.type}] {msg.content}")
+                if hasattr(msg, "tool_calls") and msg.tool_calls:
+                    for tc in msg.tool_calls:
+                        print(f"[{msg.type}] tool_call: {tc['name']}({tc['args']})")
+
+asyncio.run(main())
+#+END_SRC
+
+#+RESULTS:
+: O resultado de 3 + 5 é 8.
+
+O LLM não percebe a diferença — mesmo protocolo, mesma resposta.
+
+* 8. MCP via HTTP (Streamable HTTP)
+
+Além do stdio (subprocesso local), o MCP suporta transporte HTTP — ideal para servidores remotos.
+
+** Servidor HTTP
+
+Veja: [[file:math-server-python/server_http.py][server_http.py]]
+
+Para rodar (em outro terminal):
+
+#+BEGIN_SRC text
+cd ~/git/guilda-ia/local/math-server-python && uv run server_http.py
+#+END_SRC
+
+O servidor fica disponível em =http://localhost:11111/mcp=.
+
+** Cliente HTTP
+
+Veja: [[file:math-server-python/client_http.py][client_http.py]]
+
+Para rodar (com o servidor HTTP rodando em outro terminal):
+
+#+BEGIN_SRC text
+cd ~/git/guilda-ia/local/math-server-python && uv run server_http.py
+#+END_SRC
+
+O cliente conecta via =streamablehttp_client= em vez de =stdio_client=:
+
+#+BEGIN_SRC python
+import asyncio
+from mcp import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
+from langchain_mcp_adapters.tools import load_mcp_tools
+from langchain.agents import create_agent
+from langchain_openai import ChatOpenAI
+
+llm = ChatOpenAI(model="gemma4-e2b", base_url="http://localhost:12434/v1", api_key="nao_precisa", temperature=0)
+
+async def main():
+    async with streamablehttp_client("http://localhost:11111/mcp") as (read, write, _):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            mcp_tools = await load_mcp_tools(session)
+
+            agente = create_agent(llm, mcp_tools)
+            resultado = await agente.ainvoke(
+                {"messages": "Use a ferramenta add para somar 3 e 5."}
+            )
+            for msg in resultado["messages"]:
+                if msg.content:
+                    print(f"[{msg.type}] {msg.content}")
+                if hasattr(msg, "tool_calls") and msg.tool_calls:
+                    for tc in msg.tool_calls:
+                        print(f"[{msg.type}] tool_call: {tc['name']}({tc['args']})")
+
+asyncio.run(main())
+#+END_SRC
+
+⚠️ Diferença chave: stdio = subprocesso local, HTTP = rede. Mesmo protocolo, mesmo schema de ferramentas.
+
+* 📝 Resumo
+
+- *Chamadas encadeadas*: =create_agent= repete Thought→Action→Observation automaticamente
+- *Descrições específicas*: cada ferramenta precisa de descrição que explique *quando* usar
+- *Debug*: descrições vagas → ferramenta errada; args mal documentados → valores errados
+- *MCP servidor (Python)*: =FastMCP= + =@mcp.tool()= + =transport="stdio"=
+- *MCP servidor (Rust)*: mesmo protocolo, binário compilado, sem dependências
+- *MCP cliente (stdio)*: =stdio_client= + =ClientSession= + =load_mcp_tools(session)=
+- *MCP cliente (HTTP)*: =streamablehttp_client= + =ClientSession= + =load_mcp_tools(session)=
+- *Multi-server*: =AsyncExitStack= combina vários servidores MCP
+- *Async*: =ainvoke()= + =await= (sem =nest_asyncio= localmente)
+
+**Próxima aula:** RAG — buscar informações em documentos.
