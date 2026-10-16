@@ -22,7 +22,12 @@ try:
         msg = input("Você: ").strip()
         if not msg:
             continue
-        print("Agente:", perguntar(msg))
+        try:
+            print("Agente:", perguntar(msg))
+        except Exception as e:
+            print(f"  [o servidor caiu: {e}]")
+            print("  (tenta de novo — ele sobe sozinho)")
+            continue
         print()
 except (EOFError, KeyboardInterrupt):
     print("\nTchau!")

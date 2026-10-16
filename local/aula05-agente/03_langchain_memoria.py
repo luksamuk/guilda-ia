@@ -24,8 +24,13 @@ try:
         msg = input("Você: ").strip()
         if not msg:
             continue
-        resposta = cadeia_mem.invoke({"pergunta": msg, "history": session.messages})
-        print("Agente:", resposta.content)
+        try:
+            resposta = cadeia_mem.invoke({"pergunta": msg, "history": session.messages})
+            print("Agente:", resposta.content)
+        except Exception as e:
+            print(f"  [o servidor caiu: {e}]")
+            print("  (tenta de novo — ele sobe sozinho)")
+            continue
         print()
         session.add_message(HumanMessage(content=msg))
         session.add_message(AIMessage(content=resposta.content))

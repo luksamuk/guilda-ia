@@ -39,7 +39,12 @@ try:
         msg = input("Você: ").strip()
         if not msg:
             continue
-        print("Agente:", conversar(agente, msg))
+        try:
+            print("Agente:", conversar(agente, msg))
+        except Exception as e:
+            print(f"  [o servidor caiu: {e}]")
+            print("  (tenta de novo — ele sobe sozinho)")
+            continue
         print()
         print("historico:", json.dumps(agente["historico"], ensure_ascii=False))
         print()
