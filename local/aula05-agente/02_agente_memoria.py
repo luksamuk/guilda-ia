@@ -13,10 +13,16 @@ def criar_agente(instrucoes, max_historico=20):
     }
 
 
+def rotacionar(agente):
+    """Esquece o mais antigo quando o historico passa do max."""
+    limite = agente["max_historico"]
+    if len(agente["historico"]) > limite:
+        agente["historico"][:] = agente["historico"][-limite:]
+
+
 def conversar(agente, mensagem):
     messages = [{"role": "system", "content": agente["instrucoes"]}]
-    limite = agente["max_historico"]
-    for msg in agente["historico"][-limite:]:
+    for msg in agente["historico"]:
         messages.append(msg)
     messages.append({"role": "user", "content": mensagem})
 
@@ -29,11 +35,15 @@ def conversar(agente, mensagem):
 
     agente["historico"].append({"role": "user", "content": mensagem})
     agente["historico"].append({"role": "assistant", "content": resposta})
+    rotacionar(agente)
     return resposta
 
 
-print("Agente COM memoria — feche com Ctrl+D")
-agente = criar_agente("Você é um assistente amigável que responde em português.")
+print("Agente COM memoria (max_historico=6: lembra das 3 ultimas trocas) — feche com Ctrl+D")
+agente = criar_agente(
+    "Você é um assistente amigável que responde em português.",
+    max_historico=6,
+)
 try:
     while True:
         msg = input("Você: ").strip()
