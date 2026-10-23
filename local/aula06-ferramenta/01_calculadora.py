@@ -1,6 +1,6 @@
 from langchain_openai import ChatOpenAI
 from langchain_core.tools import tool
-from langchain_core.messages import HumanMessage, ToolMessage
+from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 
 BASE = "http://localhost:12434/v1"
 MODEL = "lfm2.5-24b-a2b"
@@ -41,33 +41,44 @@ FERRAMENTAS = {calculate.name: calculate}
 
 llm_com_ferramentas = llm.bind_tools([calculate])
 
+historico = [
+    SystemMessage(
+        content="Você é um assistente que responde em português. "
+        "Use a ferramenta calculate para qualquer cálculo numérico."
+    )
+]
+
 print(f"Agente com ferramenta ({MODEL}) — feche com Ctrl+D")
 try:
     while True:
         msg = input("Você: ").strip()
         if not msg:
             continue
+        marca = len(historico)
         try:
-            mensagens = [HumanMessage(content=msg)]
-            resposta = llm_com_ferramentas.invoke(mensagens)
-            mensagens.append(resposta)
+            historico.append(HumanMessage(content=msg))
+            resposta = llm_com_ferramentas.invoke(historico)
+            historico.append(resposta)
 
             if resposta.tool_calls:
                 for tc in resposta.tool_calls:
                     print(f"  [tool_call] {tc['name']}({tc['args']})")
                     resultado = FERRAMENTAS[tc["name"]].invoke(tc["args"])
                     print(f"  [resultado] {resultado}")
-                    mensagens.append(
+                    historico.append(
                         ToolMessage(content=str(resultado), tool_call_id=tc["id"])
                     )
-                final = llm_com_ferramentas.invoke(mensagens)
+                final = llm_com_ferramentas.invoke(historico)
+                historico.append(final)
                 print("Agente:", final.content)
             else:
                 print("Agente:", resposta.content)
         except Exception as e:
+            del historico[marca:]
             print(f"  [o servidor caiu: {e}]")
             print("  (tenta de novo — ele sobe sozinho)")
             continue
+        print(f"  [historico: {len(historico)} mensagens]")
         print()
 except (EOFError, KeyboardInterrupt):
     print("\nTchau!")
