@@ -6,13 +6,9 @@ BASE = "http://localhost:12434/v1"
 MODEL = "lfm2.5-24b-a2b"
 MAX_PASSOS = 5
 LINHA = "-" * 72
-
-llm = ChatOpenAI(
-    model=MODEL,
-    base_url=BASE,
-    api_key="nao_precisa",
-    temperature=0,
-    max_tokens=800,
+INSTRUCOES = (
+    "Você é um assistente que responde em português. "
+    "Use a ferramenta calculate para qualquer cálculo numérico."
 )
 
 
@@ -41,17 +37,23 @@ def calculate(a: float, b: float, operation: str) -> float:
 
 FERRAMENTAS = {calculate.name: calculate}
 
-llm_com_ferramentas = llm.bind_tools([calculate])
 
-historico = [
-    SystemMessage(
-        content="Você é um assistente que responde em português. "
-        "Use a ferramenta calculate para qualquer cálculo numérico."
+def montar_agente():
+    llm = ChatOpenAI(
+        model=MODEL,
+        base_url=BASE,
+        api_key="nao_precisa",
+        temperature=0,
+        max_tokens=800,
     )
-]
+    llm_com_ferramentas = llm.bind_tools(list(FERRAMENTAS.values()))
+    historico = [SystemMessage(content=INSTRUCOES)]
+    return llm_com_ferramentas, historico
 
 
 def main():
+    llm_com_ferramentas, historico = montar_agente()
+
     print(f"Agente com ferramenta ({MODEL}) — feche com Ctrl+D")
     try:
         while True:
