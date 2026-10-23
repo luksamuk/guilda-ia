@@ -8,25 +8,28 @@ MAX_PASSOS = 5
 MOSTRAR_THINKING = True
 LINHA = "-" * 72
 
-
-class ChatComReasoning(ChatOpenAI):
-    def _create_chat_result(self, response, generation_info=None):
-        resultado = super()._create_chat_result(response, generation_info)
-        bruto = response if isinstance(response, dict) else response.model_dump()
-        for geracao, choice in zip(resultado.generations, bruto.get("choices", [])):
-            pensamento = (choice.get("message") or {}).get("reasoning_content")
-            if pensamento:
-                geracao.message.additional_kwargs["reasoning_content"] = pensamento
-        return resultado
-
-
-llm = ChatComReasoning(
+llm = ChatOpenAI(
     model=MODEL,
     base_url=BASE,
     api_key="nao_precisa",
     temperature=0,
     max_tokens=800,
 )
+
+_criar_resultado_original = llm._create_chat_result
+
+
+def guardar_reasoning(response, generation_info=None):
+    resultado = _criar_resultado_original(response, generation_info)
+    bruto = response if isinstance(response, dict) else response.model_dump()
+    for geracao, choice in zip(resultado.generations, bruto.get("choices", [])):
+        pensamento = (choice.get("message") or {}).get("reasoning_content")
+        if pensamento:
+            geracao.message.additional_kwargs["reasoning_content"] = pensamento
+    return resultado
+
+
+llm._create_chat_result = guardar_reasoning
 
 
 @tool
