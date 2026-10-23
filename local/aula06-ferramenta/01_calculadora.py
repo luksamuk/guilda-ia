@@ -4,6 +4,7 @@ from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 
 BASE = "http://localhost:12434/v1"
 MODEL = "lfm2.5-24b-a2b"
+#MODEL = "bonsai2-9b"
 MAX_PASSOS = 5
 LINHA = "-" * 72
 INSTRUCOES = (
