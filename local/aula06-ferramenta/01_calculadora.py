@@ -5,7 +5,6 @@ from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 BASE = "http://localhost:12434/v1"
 MODEL = "lfm2.5-24b-a2b"
 MAX_PASSOS = 5
-MOSTRAR_THINKING = True
 LINHA = "-" * 72
 
 llm = ChatOpenAI(
@@ -15,21 +14,6 @@ llm = ChatOpenAI(
     temperature=0,
     max_tokens=800,
 )
-
-_criar_resultado_original = llm._create_chat_result
-
-
-def guardar_reasoning(response, generation_info=None):
-    resultado = _criar_resultado_original(response, generation_info)
-    bruto = response if isinstance(response, dict) else response.model_dump()
-    for geracao, choice in zip(resultado.generations, bruto.get("choices", [])):
-        pensamento = (choice.get("message") or {}).get("reasoning_content")
-        if pensamento:
-            geracao.message.additional_kwargs["reasoning_content"] = pensamento
-    return resultado
-
-
-llm._create_chat_result = guardar_reasoning
 
 
 @tool
@@ -118,14 +102,11 @@ def bloco(titulo, texto=""):
 
 
 def mostrar_thinking(mensagem):
-    pensamento = (mensagem.additional_kwargs.get("reasoning_content") or "").strip()
-    if not pensamento:
+    if not mensagem.tool_calls:
         return
-    palavras = len(pensamento.split())
-    if MOSTRAR_THINKING:
-        bloco(f"Thinking — {palavras} palavras", pensamento)
-    else:
-        bloco(f"Thinking — {palavras} palavras de raciocínio (conteúdo omitido)")
+    tokens = (mensagem.usage_metadata or {}).get("output_tokens", 0)
+    if tokens:
+        print(f"[Thinking] {tokens} tokens")
 
 
 if __name__ == "__main__":
