@@ -5,6 +5,8 @@ from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 BASE = "http://localhost:12434/v1"
 MODEL = "lfm2.5-24b-a2b"
 MAX_PASSOS = 5
+MOSTRAR_THINKING = True
+LINHA = "-" * 72
 
 
 class ChatComReasoning(ChatOpenAI):
@@ -27,10 +29,22 @@ llm = ChatComReasoning(
 )
 
 
-def mostrar_reasoning(mensagem):
-    pensamento = mensagem.additional_kwargs.get("reasoning_content")
-    if pensamento:
-        print("  [thinking]", pensamento.strip().replace("\n", "\n              "))
+def bloco(titulo, texto=""):
+    print(f"\n[{titulo}]")
+    if texto:
+        print(texto.rstrip())
+    print(LINHA)
+
+
+def mostrar_thinking(mensagem):
+    pensamento = (mensagem.additional_kwargs.get("reasoning_content") or "").strip()
+    if not pensamento:
+        return
+    palavras = len(pensamento.split())
+    if MOSTRAR_THINKING:
+        bloco(f"Thinking — {palavras} palavras", pensamento)
+    else:
+        bloco(f"Thinking — {palavras} palavras de raciocínio (conteúdo omitido)")
 
 
 @tool
@@ -73,37 +87,35 @@ try:
         msg = input("Você: ").strip()
         if not msg:
             continue
-        print()
         marca = len(historico)
         try:
             historico.append(HumanMessage(content=msg))
             resposta = llm_com_ferramentas.invoke(historico)
 
             for _ in range(MAX_PASSOS):
-                mostrar_reasoning(resposta)
+                mostrar_thinking(resposta)
                 historico.append(resposta)
 
                 if not resposta.tool_calls:
-                    print("Agente:", resposta.content)
+                    bloco("Assistente", resposta.content)
                     break
 
                 for tc in resposta.tool_calls:
-                    print(f"  [tool_call] {tc['name']}({tc['args']})")
+                    argumentos = ", ".join(f"{k}={v!r}" for k, v in tc["args"].items())
+                    bloco("Tool call", f"{tc['name']}({argumentos})")
                     resultado = FERRAMENTAS[tc["name"]].invoke(tc["args"])
-                    print(f"  [resultado] {resultado}")
+                    bloco("Resultado da ferramenta", str(resultado))
                     historico.append(
                         ToolMessage(content=str(resultado), tool_call_id=tc["id"])
                     )
 
                 resposta = llm_com_ferramentas.invoke(historico)
             else:
-                print("  [parei: passos demais sem resposta final]")
+                bloco("Parada", "limite de passos atingido sem resposta final")
         except Exception as e:
             del historico[marca:]
-            print(f"  [o servidor caiu: {e}]")
-            print("  (tenta de novo — ele sobe sozinho)")
+            bloco("Erro", f"{e}\n(tenta de novo — o servidor sobe sozinho)")
             continue
-        print(f"  [historico: {len(historico)} mensagens]")
-        print()
+        bloco(f"Histórico — {len(historico)} mensagens")
 except (EOFError, KeyboardInterrupt):
     print("\nTchau!")
