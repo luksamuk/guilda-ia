@@ -65,6 +65,9 @@ llm = ChatOpenAI(
 print("✅ Ferramentas definidas e LLM conectado")
 #+END_SRC
 
+#+RESULTS:
+: ✅ Ferramentas definidas e LLM conectado
+
 * 2. Chamadas encadeadas
 
 =create_agent= repete Thought→Action→Observation automaticamente quando a pergunta requer 2+ ferramentas em sequência.
@@ -79,6 +82,9 @@ agente = create_agent(llm, ferramentas)
 resultado = agente.invoke({"messages": "Quanto é 234 vezes 987 mais 100?"})
 print(resultado["messages"][-1].content)
 #+END_SRC
+
+#+RESULTS:
+: O resultado de 234 vezes 987 mais 100 é 231058.
 
 * 3. Descrições conflitantes
 
@@ -122,13 +128,46 @@ for msg in r1["messages"]:
     print(f"  [{msg.type}] {msg.content if msg.content else msg.tool_calls}")
 
 agente_especifico = create_agent(llm, [find_word_meaning, find_word_rhymes])
-r2 = agente_especifico.invoke({"messages": "O que significa 'serendipidade'?"})
+r2 = agente_especifico.invoke({"messages": "Quais são as palavras que rimam com 'serendipidade'?"})
 print("\n" + "=" * 60)
 print("✅ Com descrições ESPECÍFICAS:")
 print("=" * 60)
 for msg in r2["messages"]:
     print(f"  [{msg.type}] {msg.content if msg.content else msg.tool_calls}")
 #+END_SRC
+
+#+RESULTS:
+#+begin_example
+============================================================
+❌ Com descrições VAGAS:
+============================================================
+  [human] O que significa 'serendipidade'?
+  [ai] [{'name': 'find_word_meaning_bad', 'args': {'query': 'serendipidade'}, 'id': 'aG3J2ujsXE5KnlwcxOnFHj0oW4zHY2d3', 'type': 'tool_call'}]
+  [tool] Definição de serendipidade: ...
+  [ai] Serendipidade é a **capacidade ou o ato de fazer descobertas felizes ou úteis por acaso, sem que se espere que elas aconteçam**.
+
+Em outras palavras, é a **sorte** ou o **acaso** que leva a encontrar algo bom ou inesperado.
+
+,**Exemplos:**
+,*   Um cientista que estava procurando por uma cura para uma doença acidentalmente descobre um novo medicamento.
+,*   Encontrar um livro interessante em uma loja que você não estava procurando.
+
+A palavra vem do inglês, mas é muito usada no português para descrever esse tipo de descoberta fortuita e positiva.
+
+============================================================
+✅ Com descrições ESPECÍFICAS:
+============================================================
+  [human] O que significa 'serendipidade'?
+  [ai] [{'name': 'find_word_meaning', 'args': {'query': 'serendipidade'}, 'id': 'ATfevggkmrZKHyll8z2MaQkq0JOY2kOf', 'type': 'tool_call'}]
+  [tool] Definição de serendipidade: significa...
+  [ai] O termo **serendipidade** refere-se à capacidade ou à qualidade de fazer descobertas felizes e inesperadas, ou encontrar coisas boas por acaso, sem que se procure ativamente por elas.
+
+É a ocorrência de um evento positivo ou uma descoberta útil que acontece de forma fortuita, mas que é bem-vinda ou valiosa.
+
+,**Em resumo:** É a "sorte" de encontrar algo bom sem ter a intenção de encontrá-lo.
+
+,**Exemplo:** Uma pessoa que está procurando um livro específico e, sem querer, encontra um livro que é muito mais interessante e útil para ela, isso pode ser um exemplo de serendipidade.
+#+end_example
 
 * 4. Debug de ferramentas
 
